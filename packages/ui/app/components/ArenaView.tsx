@@ -3,9 +3,7 @@ import {
   Alert,
   Badge,
   Box,
-  Button,
   Card,
-  FileButton,
   Group,
   LoadingOverlay,
   ScrollArea,
@@ -18,13 +16,10 @@ import {
   Tooltip,
   useMantineTheme,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import {
   IconAlertTriangle,
   IconInfoCircle,
   IconRouter,
-  IconTrash,
-  IconUpload,
   IconWifi,
   IconZoomIn,
   IconZoomOut,
@@ -110,7 +105,6 @@ const normalizers: Record<string, (value: string) => string> = {
   'trim-lower': (value: string) => value.trim().toLowerCase(),
 };
 
-const STORAGE_KEY = 'xcpc-tools/arena-layouts';
 const DEFAULT_LAYOUT_KEY = 'xcpc-tools/arena-layout-selected';
 
 const isBrowser = typeof window !== 'undefined';
@@ -216,17 +210,9 @@ const parseLayouts = (input: unknown): ArenaLayoutDocument[] => {
   return Array.from(map.values());
 };
 
-const loadLayoutsFromStorage = (): ArenaLayoutDocument[] => {
+const loadLayoutsFromContext = (): ArenaLayoutDocument[] => {
   if (!isBrowser) return [];
-  const raw = window.localStorage.getItem(STORAGE_KEY);
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    return parseLayouts(parsed);
-  } catch (error) {
-    console.warn('Failed to parse stored arena layouts:', error);
-    return [];
-  }
+  return parseLayouts(window.Context?.arenaLayouts ?? []);
 };
 
 const pickPrimaryMonitor = (monitors: MonitorRecord[]): MonitorRecord | null => {
@@ -267,24 +253,15 @@ export function ArenaView({ monitors, isLoading, openMonitorInfo }: ArenaViewPro
   const theme = useMantineTheme();
   const monospaceFont = theme.fontFamilyMonospace ?? 'monospace';
   const [viewMode, setViewMode] = React.useState<ArenaViewMode>('signal');
+  const [layouts] = React.useState<ArenaLayoutDocument[]>(() => loadLayoutsFromContext());
   const [selectedLayoutId, setSelectedLayoutId] = React.useState<string | null>(() => {
     if (!isBrowser) return null;
     const stored = window.localStorage.getItem(DEFAULT_LAYOUT_KEY);
-    if (stored) return stored;
-    const existing = loadLayoutsFromStorage();
-    return existing[0]?.id ?? null;
+    if (stored && layouts.some((l) => l.id === stored)) return stored;
+    const defaultLayout = layouts.find((l) => l.default);
+    return defaultLayout?.id ?? layouts[0]?.id ?? null;
   });
   const [zoom, setZoom] = React.useState(0.40);
-  const [layouts, setLayouts] = React.useState<ArenaLayoutDocument[]>(() => loadLayoutsFromStorage());
-
-  React.useEffect(() => {
-    if (!isBrowser) return;
-    if (!layouts.length) {
-      window.localStorage.removeItem(STORAGE_KEY);
-      return;
-    }
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(layouts));
-  }, [layouts]);
 
   React.useEffect(() => {
     if (!isBrowser) return;
@@ -369,57 +346,6 @@ export function ArenaView({ monitors, isLoading, openMonitorInfo }: ArenaViewPro
     }
     return { seatMap, overflow };
   }, [definedSeatIds, layout, monitors, normalizeSeatId]);
-
-  const handleImportLayouts = React.useCallback(async (file: File | null) => {
-    if (!file) return;
-    try {
-      const text = await file.text();
-      const parsedRaw = JSON.parse(text) as unknown;
-      const imported = parseLayouts(parsedRaw);
-      if (!imported.length) {
-        notifications.show({ title: 'Import skipped', message: 'No valid layouts were found in the JSON file.', color: 'yellow' });
-        return;
-      }
-      setLayouts((prev) => {
-        const merged = [...prev];
-        imported.forEach((layoutDoc) => {
-          const index = merged.findIndex((item) => item.id === layoutDoc.id);
-          if (index === -1) {
-            merged.push(layoutDoc);
-          } else {
-            merged[index] = layoutDoc;
-          }
-        });
-        return merged;
-      });
-      const preferred = imported.find((item) => item.default) ?? imported[0];
-      if (preferred) {
-        setSelectedLayoutId((current) => {
-          if (current && imported.some((item) => item.id === current)) return current;
-          return preferred.id;
-        });
-      }
-      notifications.show({
-        title: 'Layouts imported',
-        message: `Loaded ${imported.length} layout${imported.length > 1 ? 's' : ''} from ${file.name}.`,
-        color: 'green',
-      });
-    } catch (error) {
-      console.error('Failed to import arena layouts', error);
-      const message = error instanceof Error ? error.message : 'Invalid JSON file.';
-      notifications.show({ title: 'Import failed', message, color: 'red' });
-    }
-  }, []);
-
-  const handleClearLayouts = React.useCallback(() => {
-    setLayouts([]);
-    setSelectedLayoutId(null);
-    if (isBrowser) {
-      window.localStorage.removeItem(STORAGE_KEY);
-      window.localStorage.removeItem(DEFAULT_LAYOUT_KEY);
-    }
-    notifications.show({ title: 'Layouts cleared', message: 'Arena layouts were removed from this browser.', color: 'orange' });
-  }, []);
 
   const unmatchedMonitors = overflow;
 
@@ -592,15 +518,15 @@ export function ArenaView({ monitors, isLoading, openMonitorInfo }: ArenaViewPro
   const renderSection = () => {
     if (!layouts.length) {
       return (
-        <Alert icon={<IconAlertTriangle size={16} />} color="orange" variant="light" title="No Layouts Loaded">
-          <Text size="sm">Use the Import JSON button to load a seat map. Imported layouts are saved in this browser&apos;s local storage.</Text>
+        <Alert icon={<IconAlertTriangle size={16} />} color="orange" variant="light" title="No Layouts Configured">
+          <Text size="sm">No arena layouts are configured. Set the arenaLayouts option in your server config to specify a layout file.</Text>
         </Alert>
       );
     }
     if (!layout) {
       return (
         <Alert icon={<IconAlertTriangle size={16} />} color="blue" variant="light" title="Choose A Layout">
-          <Text size="sm">Select a layout from the dropdown. You can import additional layouts at any time.</Text>
+          <Text size="sm">Select a layout from the dropdown.</Text>
         </Alert>
       );
     }
@@ -720,28 +646,6 @@ export function ArenaView({ monitors, isLoading, openMonitorInfo }: ArenaViewPro
                 </ActionIcon>
               </Group>
               <Text size="sm" c="dimmed">{Math.round(zoom * 100)}%</Text>
-            </Group>
-            <Group gap="xs">
-              <FileButton onChange={handleImportLayouts} accept="application/json">
-                {(fileProps) => (
-                  <Button
-                    {...fileProps}
-                    variant="light"
-                    leftSection={<IconUpload size={16} />}
-                  >
-                    Import JSON
-                  </Button>
-                )}
-              </FileButton>
-              <Button
-                variant="light"
-                color="red"
-                leftSection={<IconTrash size={16} />}
-                onClick={handleClearLayouts}
-                disabled={!layouts.length}
-              >
-                Clear Layouts
-              </Button>
             </Group>
           </Group>
           {renderLegend()}
