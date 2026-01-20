@@ -92,6 +92,7 @@ const serverSchema = Schema.intersect([
         viewPass: Schema.string().default(randomstring(8)),
         secretRoute: Schema.string().default(randomstring(12)),
         customKeyfile: Schema.string().default(''),
+        arenaLayouts: Schema.string().default('').description('Path to arena layouts file (.yaml/.yml/.json)'),
         monitor: Config,
     }).description('Basic Config'),
     Schema.union([
@@ -132,6 +133,34 @@ export const saveConfig = () => {
     fs.writeFileSync(configPath, yaml.dump(config));
 };
 export const version = packageVersion;
+
+// Load arena layouts from external file
+const loadArenaLayouts = (): unknown[] => {
+    if (isClient || !config.arenaLayouts) return [];
+    const layoutsPath = path.resolve(process.cwd(), config.arenaLayouts);
+    if (!fs.existsSync(layoutsPath)) {
+        logger.warn(`Arena layouts file not found: ${layoutsPath}`);
+        return [];
+    }
+    try {
+        const content = fs.readFileSync(layoutsPath, 'utf8');
+        const ext = path.extname(layoutsPath).toLowerCase();
+        let parsed: unknown;
+        if (ext === '.json') {
+            parsed = JSON.parse(content);
+        } else {
+            parsed = yaml.load(content);
+        }
+        const layouts = Array.isArray(parsed) ? parsed : [parsed];
+        logger.info(`Loaded ${layouts.length} arena layout(s) from ${layoutsPath}`);
+        return layouts;
+    } catch (e) {
+        logger.error(`Failed to load arena layouts from ${layoutsPath}:`, e);
+        return [];
+    }
+};
+
+export const arenaLayouts = loadArenaLayouts();
 
 logger.info(`Config loaded from ${configPath}`);
 logger.info(`xcpc-tools version: ${packageVersion}`);

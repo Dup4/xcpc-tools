@@ -2,7 +2,7 @@
 import { Context } from 'cordis';
 import { Registry } from 'prom-client';
 import { Handler } from '@hydrooj/framework';
-import { config, version } from '../config';
+import { arenaLayouts, config, version } from '../config';
 import StaticFrontend from '../data/static.frontend';
 import {
     createMetricsRegistry, decodeBinary, randomstring, StaticHTML,
@@ -45,6 +45,7 @@ class HomeHandler extends AuthHandler {
         const context = {
             secretRoute: config.secretRoute,
             contest: this.ctx.fetcher?.contest || { name: 'Server Mode' },
+            arenaLayouts,
         };
         if (this.request.headers.accept === 'application/json') {
             this.response.body = context;
