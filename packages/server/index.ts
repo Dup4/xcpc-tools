@@ -34,7 +34,7 @@ async function applyServer(ctx: Context) {
             c.plugin(require('./handler/monitor'), config.monitor),
             c.plugin(require('./handler/client')),
             c.plugin(require('./handler/balloon')),
-            c.plugin(require('./handler/commands')),
+            // c.plugin(require('./handler/commands')),
         ]);
         c.server.listen();
     });

@@ -5,7 +5,7 @@ import {
 } from 'react-router-dom';
 import { Header } from './components/Header';
 import Balloon from './pages/Balloon';
-import Commands from './pages/Commands';
+// import Commands from './pages/Commands';
 import Dashboard from './pages/Dashboard';
 import Logs from './pages/Logs';
 import Monitor from './pages/Monitor';
@@ -40,7 +40,7 @@ export default function App() {
           <Route path="/print" element={<Print />} />
           <Route path="/balloon" element={<Balloon />} />
           <Route path="/monitor" element={<Monitor />} />
-          <Route path="/commands" element={<Commands />} />
+          {/* <Route path="/commands" element={<Commands />} /> */}
         </Route>
         <Route path="/resolver" element={<Resolver />} />
       </Routes>
