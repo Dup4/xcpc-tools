@@ -22,7 +22,7 @@ export default function Print() {
         <Title order={3}>Balloons</Title>
         <Group>
           <BallonColorChecker />
-          <BalloonsClient clients={query.data?.clients || []} refresh={query.refetch} />
+          <BalloonsClient clients={query.data?.clients || []} />
         </Group>
       </Group>
       {(!query.isLoading && !query.isFetching && (!(query.data?.balloons || []).length) ? (

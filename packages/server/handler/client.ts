@@ -3,7 +3,8 @@ import { Context } from 'cordis';
 import {
     BadRequestError, ForbiddenError, Handler, ValidationError,
 } from '@hydrooj/framework';
-import { fs, Logger, randomstring } from '../utils';
+import { configClients } from '../config';
+import { fs, Logger } from '../utils';
 import { AuthHandler } from './misc';
 
 const logger = new Logger('handler/client');
@@ -14,25 +15,12 @@ class ClientControlHandler extends AuthHandler {
         this.response.body = { clients };
     }
 
-    async postAdd(params) {
-        const { name, type } = params;
-        const client = await this.ctx.db.client.findOne({ name });
-        if (client) throw new ValidationError('Client', null, 'Client already exists');
-        const id = randomstring(6);
-        await this.ctx.db.client.insert({
-            id,
-            name,
-            type,
-            createAt: new Date().getTime(),
-        });
-        this.response.body = { id };
+    async postAdd() {
+        throw new ForbiddenError('Client', null, 'Client creation is disabled. Configure clients in config.server.yaml');
     }
 
-    async postRemove(params) {
-        const client = await this.ctx.db.client.findOne({ id: params.id });
-        if (!client) throw new ValidationError('Client', null, 'Client not found');
-        await this.ctx.db.client.removeOne({ id: params.id }, {});
-        this.response.body = { success: true };
+    async postRemove() {
+        throw new ForbiddenError('Client', null, 'Client removal is disabled. Configure clients in config.server.yaml');
     }
 }
 
@@ -119,6 +107,18 @@ class ClientBalloonDoneHandler extends Handler {
 }
 
 export async function apply(ctx: Context) {
+    // Sync clients from config to database
+    for (const client of configClients) {
+        const existing = await ctx.db.client.findOne({ id: client.id });
+        if (!existing) {
+            await ctx.db.client.insert({
+                ...client,
+                createAt: Date.now(),
+            });
+            logger.info(`Client ${client.name}(${client.id}) created from config`);
+        }
+    }
+
     ctx.Route('client_control', '/client', ClientControlHandler);
     ctx.Route('client_print_fetch', '/client/:cid/print', ClientPrintConnectHandler);
     ctx.Route('client_print_done', '/client/:cid/doneprint/:tid', ClientPrintDoneHandler);

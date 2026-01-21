@@ -1,6 +1,7 @@
 import path from 'node:path';
 import Schema from 'schemastery';
 import { Config } from './handler/monitor';
+import { ConfigClient } from './interface';
 import { version as packageVersion } from './package.json';
 import {
     checkReceiptPrinter,
@@ -80,6 +81,23 @@ monitor:
     throw new Error('no-config');
 }
 
+const clientConfigSchema = Schema.object({
+    id: Schema.string().required().description('Unique client identifier'),
+    name: Schema.string().required().description('Client display name'),
+    type: Schema.union([
+        Schema.const('printer'),
+        Schema.const('balloon'),
+        Schema.const('webhook'),
+    ] as const).required().description('Client type'),
+    subType: Schema.string(),
+    group: Schema.array(Schema.string()).default([]),
+    // For webhook clients
+    token: Schema.string(),
+    chatId: Schema.string(),
+    endpoint: Schema.string(),
+    template: Schema.string(),
+});
+
 const serverSchema = Schema.intersect([
     Schema.object({
         type: Schema.union([
@@ -93,6 +111,7 @@ const serverSchema = Schema.intersect([
         secretRoute: Schema.string().default(randomstring(12)),
         customKeyfile: Schema.string().default(''),
         arenaLayouts: Schema.string().default('').description('Path to arena layouts file (.yaml/.yml/.json)'),
+        clients: Schema.array(clientConfigSchema).default([]).description('Built-in printer/balloon/webhook clients'),
         monitor: Config,
     }).description('Basic Config'),
     Schema.union([
@@ -161,6 +180,27 @@ const loadArenaLayouts = (): unknown[] => {
 };
 
 export const arenaLayouts = loadArenaLayouts();
+
+// Load and validate clients from config
+const loadClients = (): ConfigClient[] => {
+    if (isClient) return [];
+    const clients = (config.clients || []) as ConfigClient[];
+    // Validate unique IDs
+    const ids = new Set<string>();
+    for (const client of clients) {
+        if (ids.has(client.id)) {
+            logger.error(`Duplicate client ID: ${client.id}`);
+            throw new Error(`Duplicate client ID: ${client.id}`);
+        }
+        ids.add(client.id);
+    }
+    if (clients.length > 0) {
+        logger.info(`Loaded ${clients.length} client(s) from config`);
+    }
+    return clients;
+};
+
+export const configClients = loadClients();
 
 logger.info(`Config loaded from ${configPath}`);
 logger.info(`xcpc-tools version: ${packageVersion}`);
