@@ -8,9 +8,10 @@ import { notifications } from '@mantine/notifications';
 import {
   IconCheck, IconEye, IconHourglassEmpty, IconPrinter, IconRefresh, IconX,
 } from '@tabler/icons-react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import React from 'react';
 
-function PrintTaskRow({ colorCode, task, refresh }) {
+const PrintTaskRow = React.memo(function PrintTaskRow({ colorCode, task, refresh }: { colorCode: boolean; task: any; refresh: () => void }) {
   const [loading, setLoading] = React.useState(false);
 
   const codeActions = async (_id, operation) => {
@@ -91,24 +92,54 @@ function PrintTaskRow({ colorCode, task, refresh }) {
       </Table.Td>
     </Table.Tr>
   );
-}
+});
+
+const ROW_HEIGHT = 50;
 
 export function PrintTasksTable({ colorCode, codes, refresh }) {
+  const parentRef = React.useRef<HTMLDivElement>(null);
+
+  const virtualizer = useVirtualizer({
+    count: codes.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 10,
+  });
+
+  const virtualItems = virtualizer.getVirtualItems();
+
   return (
-    <Table
-      horizontalSpacing="md" verticalSpacing="xs" miw={700}
-      striped highlightOnHover stickyHeader
-    >
-      <Table.Thead>
-        <Table.Tr>
-          <Table.Th></Table.Th>
-          <Table.Th>#</Table.Th>
-          <Table.Th>Team</Table.Th>
-          <Table.Th>Filename</Table.Th>
-          <Table.Th>Actions</Table.Th>
-        </Table.Tr>
-      </Table.Thead>
-      <Table.Tbody>{ codes.map((task) => <PrintTaskRow key={task._id} task={task} colorCode={colorCode} refresh={refresh} />) }</Table.Tbody>
-    </Table>
+    <div ref={parentRef} style={{ height: 'calc(100vh - 200px)', overflow: 'auto' }}>
+      <Table
+        horizontalSpacing="md" verticalSpacing="xs" miw={700}
+        striped highlightOnHover stickyHeader
+      >
+        <Table.Thead>
+          <Table.Tr>
+            <Table.Th></Table.Th>
+            <Table.Th>#</Table.Th>
+            <Table.Th>Team</Table.Th>
+            <Table.Th>Filename</Table.Th>
+            <Table.Th>Actions</Table.Th>
+          </Table.Tr>
+        </Table.Thead>
+        <Table.Tbody>
+          {virtualItems.length > 0 && virtualItems[0].start > 0 && (
+            <tr style={{ height: virtualItems[0].start }} />
+          )}
+          {virtualItems.map((virtualItem) => (
+            <PrintTaskRow
+              key={codes[virtualItem.index]._id}
+              task={codes[virtualItem.index]}
+              colorCode={colorCode}
+              refresh={refresh}
+            />
+          ))}
+          {virtualItems.length > 0 && (
+            <tr style={{ height: virtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end }} />
+          )}
+        </Table.Tbody>
+      </Table>
+    </div>
   );
 }
