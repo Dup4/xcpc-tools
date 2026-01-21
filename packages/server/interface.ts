@@ -59,6 +59,20 @@ export interface CommandTask {
     executionResult: Record<string, string>;
 }
 
+// Config-defined client (from YAML)
+export interface ConfigClient {
+    id: string;
+    name: string;
+    type: 'printer' | 'balloon' | 'webhook';
+    subType?: string;
+    group?: string[];
+    // For webhook clients
+    token?: string;
+    chatId?: string;
+    endpoint?: string;
+    template?: string;
+}
+
 export interface ClientDoc {
     _id: string;
     id: string;

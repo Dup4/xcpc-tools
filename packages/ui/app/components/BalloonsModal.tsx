@@ -1,64 +1,28 @@
 import {
   Accordion,
   ActionIcon,
-  Button, Center, ColorInput, Fieldset, FocusTrap, Group, LoadingOverlay, Modal, Text,
-  TextInput, ThemeIcon, Tooltip,
+  Button, Center, ColorInput, Fieldset, Group, Modal, Text,
+  ThemeIcon, Tooltip,
 } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
+import { useClipboard, useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { IconCheck, IconCopy, IconX } from '@tabler/icons-react';
 import React, { useState } from 'react';
 import { getBalloonName } from '@hydrooj/xcpc-tools/utils/color';
 
-export function BalloonsClient({ clients, refresh }) {
-  const [adding, setAdding] = useState(false);
+export function BalloonsClient({ clients }) {
   const [opened, { open, close }] = useDisclosure(false);
-  const [name, setName] = useState('');
+  const clipboard = useClipboard();
 
-  const addClient = async () => {
-    setAdding(true);
-    try {
-      const res = await (await fetch('/client', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, operation: 'add', type: 'balloon' }),
-      })).json();
-      if (res.error) {
-        notifications.show({ title: 'Error', message: `${res.error.message}(${res.error.params})`, color: 'red' });
-        setAdding(false);
-        return;
-      }
-      notifications.show({ title: 'Success', message: 'Client added', color: 'green' });
-      setName('');
-    } catch (e) {
-      console.error(e);
-      notifications.show({ title: 'Error', message: 'Failed to add client', color: 'red' });
-    }
-    setAdding(false);
-    close();
-    refresh();
-  };
   return (
     <>
       <Modal
         opened={opened}
-        onClose={() => { close(); setName(''); }}
+        onClose={close}
         title="Clients"
         size="md"
         padding="md"
       >
-        <Fieldset legend="Add Client" mb="lg">
-          <LoadingOverlay visible={adding} zIndex={1000} overlayProps={{ radius: 'sm', blur: 2 }} />
-          <FocusTrap active>
-            <TextInput
-              label="Client Name"
-              placeholder="Client Name"
-              value={name}
-              onChange={(e) => setName(e.currentTarget.value)} data-autofocus
-            />
-          </FocusTrap>
-          <Button color="blue" fullWidth mt="md" radius="md" onClick={addClient}>Submit</Button>
-        </Fieldset>
         <Fieldset legend="Clients" mb="lg">
           <Accordion>
             {clients.map((item) => (
@@ -79,6 +43,7 @@ export function BalloonsClient({ clients, refresh }) {
                     <Text>ID: {item.id}</Text>
                     <Tooltip label="Copy ID">
                       <ActionIcon variant="transparent" color="blue" aria-label='Copy ID' ml="xs" onClick={() => {
+                        clipboard.copy(item.id);
                         notifications.show({ title: 'Success', message: 'ID Copied to clipboard!', color: 'green' });
                       }}><IconCopy /></ActionIcon>
                     </Tooltip>

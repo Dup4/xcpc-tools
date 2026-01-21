@@ -78,25 +78,6 @@ function PrintersInfo({ client, refresh }) {
 export function PrintClientInfo({ clients, refresh }) {
   const clipboard = useClipboard();
 
-  const removeClient = async (id) => {
-    try {
-      const res = await (await fetch('/client', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, operation: 'remove' }),
-      })).json();
-      if (res.error) {
-        notifications.show({ title: 'Error', message: `${res.error.message}(${res.error.params})`, color: 'red' });
-        return;
-      }
-      notifications.show({ title: 'Success', message: 'Client Removed', color: 'green' });
-    } catch (e) {
-      console.error(e);
-      notifications.show({ title: 'Error', message: 'Failed to remove client', color: 'red' });
-    }
-    refresh();
-  };
-
   return (
     <Accordion variant='contained' mt="md">
       {clients.map((item) => (
@@ -120,9 +101,6 @@ export function PrintClientInfo({ clients, refresh }) {
                   clipboard.copy(item.id);
                   notifications.show({ title: 'Success', message: 'ID Copied to clipboard!', color: 'green' });
                 }}><IconCopy /></ActionIcon>
-              </Tooltip>
-              <Tooltip label="Remove">
-                <ActionIcon variant="transparent" color="red" aria-label='Remove' ml="xs" onClick={() => removeClient(item.id)}><IconX /></ActionIcon>
               </Tooltip>
             </Group>
             { !item.updateAt ? (

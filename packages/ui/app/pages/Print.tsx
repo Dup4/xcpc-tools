@@ -3,7 +3,7 @@ import {
 } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import React from 'react';
-import { PrintClientAdd, PrintTaskAdd } from '../components/PrintAdd';
+import { PrintTaskAdd } from '../components/PrintAdd';
 import { PrintClientInfo } from '../components/PrintClientInfo';
 import { PrintTasksTable } from '../components/PrintTasksTable';
 
@@ -44,7 +44,6 @@ export default function Print() {
             <LoadingOverlay visible={load} zIndex={1000} />
             <Group justify="space-between" mb="xs">
               <Title order={3}>Print Clients</Title>
-              <PrintClientAdd refresh={query.refetch} />
             </Group>
             {(!query.isLoading && !query.isFetching && (!(query.data?.clients || []).length) ? (
               <Center mt="md">

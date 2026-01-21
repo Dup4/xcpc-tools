@@ -134,6 +134,10 @@ export async function apply(ctx: Context) {
         const {
             _id, subType, token, chatId, endpoint,
         } = client;
+        if (!subType || !Notifier[subType]) {
+            logger.warn(`Unknown notifier subType: ${subType} for client ${_id}`);
+            continue;
+        }
         const notifierInstance = new Notifier[subType](token, endpoint, chatId);
         logger.info(`Notifier ${subType}(${_id}) loaded`);
         notifiers[_id] = notifierInstance;
