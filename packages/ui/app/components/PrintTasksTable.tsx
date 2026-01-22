@@ -62,6 +62,9 @@ const PrintTaskRow = React.memo(function PrintTaskRow({ colorCode, task, refresh
         </Tooltip>
       </Table.Td>
       <Table.Td>
+        <Text size='sm'>{new Date(task.createAt).toLocaleString()}</Text>
+      </Table.Td>
+      <Table.Td>
         <Tooltip label={`[${task.location}]${task.team}`}>
           <Text lineClamp={1} size='sm'>[{task.location}]{task.team}</Text>
         </Tooltip>
@@ -120,6 +123,7 @@ export function PrintTasksTable({ colorCode, codes, refresh }) {
             <Table.Th>#</Table.Th>
             <Table.Th>Team</Table.Th>
             <Table.Th>Filename</Table.Th>
+            <Table.Th>Time</Table.Th>
             <Table.Th>Actions</Table.Th>
           </Table.Tr>
         </Table.Thead>
