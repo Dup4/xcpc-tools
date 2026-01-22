@@ -111,6 +111,7 @@ const serverSchema = Schema.intersect([
         secretRoute: Schema.string().default(randomstring(12)),
         customKeyfile: Schema.string().default(''),
         arenaLayouts: Schema.string().default('').description('Path to arena layouts file (.yaml/.yml/.json)'),
+        staticDir: Schema.string().default('').description('Static files directory path for client downloads'),
         clients: Schema.array(clientConfigSchema).default([]).description('Built-in printer/balloon/webhook clients'),
         monitor: Config,
     }).description('Basic Config'),
