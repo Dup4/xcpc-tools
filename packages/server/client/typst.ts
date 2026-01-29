@@ -93,7 +93,7 @@ export function generateTypst(team: string, location: string, filename: string, 
       }
       #fit(name: team)
       #h(1fr)
-      ${new Date(createAt).toLocaleString('zh')}
+      ${new Date(createAt).toLocaleString()}
       #linebreak()
       filename: #original
       #h(1fr)

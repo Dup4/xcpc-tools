@@ -121,9 +121,9 @@ export function PrintTasksTable({ colorCode, codes, refresh }) {
           <Table.Tr>
             <Table.Th></Table.Th>
             <Table.Th>#</Table.Th>
+            <Table.Th>Time</Table.Th>
             <Table.Th>Team</Table.Th>
             <Table.Th>Filename</Table.Th>
-            <Table.Th>Time</Table.Th>
             <Table.Th>Actions</Table.Th>
           </Table.Tr>
         </Table.Thead>
