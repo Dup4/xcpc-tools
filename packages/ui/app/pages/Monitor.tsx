@@ -9,8 +9,14 @@ import { MonitorBatchModal } from '../components/MonitorBatchModel';
 import { MonitorCards, MonitorTable } from '../components/MonitorDisplay';
 import { MonitorInfo } from '../components/MonitorInfo';
 
+const getInitialTab = (): string => {
+  if (typeof window === 'undefined') return 'all';
+  const params = new URLSearchParams(window.location.search);
+  return params.has('mode') ? 'arena' : 'all';
+};
+
 export default function Monitor() {
-  const [activeTab, setActiveTab] = React.useState('all');
+  const [activeTab, setActiveTab] = React.useState(getInitialTab);
   const [useTableMode, setUseTableMode] = React.useState(false);
   const [detailM, setDetailM] = React.useState(null);
   const [infoTab, setInfoTab] = React.useState('info');
@@ -83,7 +89,22 @@ export default function Monitor() {
               </Button>
             </Group>
           </Group>
-          <Tabs value={activeTab} keepMounted={false} onChange={(value) => setActiveTab(value!)}>
+          <Tabs
+            value={activeTab}
+            keepMounted={false}
+            onChange={(value) => {
+              setActiveTab(value!);
+              if (value !== 'arena' && typeof window !== 'undefined') {
+                const params = new URLSearchParams(window.location.search);
+                params.delete('mode');
+                const search = params.toString();
+                const desired = search ? `?${search}` : '';
+                if (window.location.search !== desired) {
+                  window.history.replaceState(null, '', `${window.location.pathname}${desired}${window.location.hash}`);
+                }
+              }
+            }}
+          >
             <Tabs.List>
               <Tabs.Tab value="all">All({Object.values(query.data?.monitors || {}).length})</Tabs.Tab>
               <Tabs.Tab value="arena">Arena View</Tabs.Tab>

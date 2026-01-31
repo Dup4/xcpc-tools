@@ -97,11 +97,9 @@ const viewModeOptions: { value: ArenaViewMode; label: string }[] = [
   { value: 'status', label: 'Online Status' },
 ];
 
-const getViewModeFromHash = (): ArenaViewMode => {
+const getViewModeFromQuery = (): ArenaViewMode => {
   if (!isBrowser) return 'signal';
-  const hash = window.location.hash.slice(1);
-  if (!hash) return 'signal';
-  const params = new URLSearchParams(hash);
+  const params = new URLSearchParams(window.location.search);
   const mode = params.get('mode');
   if (mode === 'bssid' || mode === 'status' || mode === 'signal') return mode;
   return 'signal';
@@ -265,7 +263,7 @@ interface ArenaViewProps {
 export function ArenaView({ monitors, isLoading, openMonitorInfo }: ArenaViewProps) {
   const theme = useMantineTheme();
   const monospaceFont = theme.fontFamilyMonospace ?? 'monospace';
-  const [viewMode, setViewMode] = React.useState<ArenaViewMode>(getViewModeFromHash);
+  const [viewMode, setViewMode] = React.useState<ArenaViewMode>(getViewModeFromQuery);
   const [layouts] = React.useState<ArenaLayoutDocument[]>(() => loadLayoutsFromContext());
   const [selectedLayoutId, setSelectedLayoutId] = React.useState<string | null>(() => {
     if (!isBrowser) return null;
@@ -278,13 +276,12 @@ export function ArenaView({ monitors, isLoading, openMonitorInfo }: ArenaViewPro
 
   React.useEffect(() => {
     if (!isBrowser) return;
-    const hash = window.location.hash.slice(1);
-    const params = new URLSearchParams(hash);
+    const params = new URLSearchParams(window.location.search);
     params.set('mode', viewMode);
-    const newHash = params.toString();
-    const desired = newHash ? `#${newHash}` : '';
-    if (window.location.hash !== desired) {
-      window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${desired}`);
+    const search = params.toString();
+    const desired = search ? `?${search}` : '';
+    if (window.location.search !== desired) {
+      window.history.replaceState(null, '', `${window.location.pathname}${desired}${window.location.hash}`);
     }
   }, [viewMode]);
 
