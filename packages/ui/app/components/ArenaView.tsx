@@ -75,15 +75,18 @@ const getSignalColor = (signal: number, fallback: string): string => {
   return `hsl(${Math.round(hue)}, 80%, 45%)`;
 };
 
-const hashToColor = (value: string): string => {
-  let hash = 0;
-  for (let i = 0; i < value.length; i += 1) {
-    hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
+const generateDistinctColors = (count: number): string[] => {
+  if (count === 0) return [];
+  if (count === 1) return ['hsl(200, 80%, 45%)'];
+  const colors: string[] = [];
+  const hueStep = 360 / count;
+  for (let i = 0; i < count; i += 1) {
+    const hue = (i * hueStep) % 360;
+    const saturation = 70 + (i % 3) * 5;
+    const lightness = 40 + (i % 4) * 3;
+    colors.push(`hsl(${Math.round(hue)}, ${saturation}%, ${lightness}%)`);
   }
-  const hue = hash % 360;
-  const saturation = 55 + (hash % 30);
-  const lightness = 45 + (hash % 20) / 2;
-  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+  return colors;
 };
 
 type ArenaViewMode = 'signal' | 'bssid' | 'status';
@@ -93,6 +96,16 @@ const viewModeOptions: { value: ArenaViewMode; label: string }[] = [
   { value: 'bssid', label: 'BSSID' },
   { value: 'status', label: 'Online Status' },
 ];
+
+const getViewModeFromHash = (): ArenaViewMode => {
+  if (!isBrowser) return 'signal';
+  const hash = window.location.hash.slice(1);
+  if (!hash) return 'signal';
+  const params = new URLSearchParams(hash);
+  const mode = params.get('mode');
+  if (mode === 'bssid' || mode === 'status' || mode === 'signal') return mode;
+  return 'signal';
+};
 
 const defaultNormalize = (value: string): string => value.trim().toUpperCase();
 
@@ -252,7 +265,7 @@ interface ArenaViewProps {
 export function ArenaView({ monitors, isLoading, openMonitorInfo }: ArenaViewProps) {
   const theme = useMantineTheme();
   const monospaceFont = theme.fontFamilyMonospace ?? 'monospace';
-  const [viewMode, setViewMode] = React.useState<ArenaViewMode>('signal');
+  const [viewMode, setViewMode] = React.useState<ArenaViewMode>(getViewModeFromHash);
   const [layouts] = React.useState<ArenaLayoutDocument[]>(() => loadLayoutsFromContext());
   const [selectedLayoutId, setSelectedLayoutId] = React.useState<string | null>(() => {
     if (!isBrowser) return null;
@@ -262,6 +275,18 @@ export function ArenaView({ monitors, isLoading, openMonitorInfo }: ArenaViewPro
     return defaultLayout?.id ?? layouts[0]?.id ?? null;
   });
   const [zoom, setZoom] = React.useState(0.40);
+
+  React.useEffect(() => {
+    if (!isBrowser) return;
+    const hash = window.location.hash.slice(1);
+    const params = new URLSearchParams(hash);
+    params.set('mode', viewMode);
+    const newHash = params.toString();
+    const desired = newHash ? `#${newHash}` : '';
+    if (window.location.hash !== desired) {
+      window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${desired}`);
+    }
+  }, [viewMode]);
 
   React.useEffect(() => {
     if (!isBrowser) return;
@@ -347,6 +372,23 @@ export function ArenaView({ monitors, isLoading, openMonitorInfo }: ArenaViewPro
     return { seatMap, overflow };
   }, [definedSeatIds, layout, monitors, normalizeSeatId]);
 
+  const bssidColorMap = React.useMemo(() => {
+    if (viewMode !== 'bssid') return new Map<string, string>();
+    const uniqueBssids = new Set<string>();
+    for (const monitor of monitors) {
+      if (monitor.wifiBssid && monitor.updateAt && monitor.updateAt > Date.now() - ONLINE_THRESHOLD_MS) {
+        uniqueBssids.add(monitor.wifiBssid);
+      }
+    }
+    const bssidArray = Array.from(uniqueBssids).sort();
+    const colors = generateDistinctColors(bssidArray.length);
+    const map = new Map<string, string>();
+    bssidArray.forEach((bssid, index) => {
+      map.set(bssid, colors[index]);
+    });
+    return map;
+  }, [monitors, viewMode]);
+
   const unmatchedMonitors = overflow;
 
   const getSeatStatusColor = (seatId: string): { color: string; monitor: MonitorRecord | null; monitors: MonitorRecord[] } => {
@@ -356,7 +398,11 @@ export function ArenaView({ monitors, isLoading, openMonitorInfo }: ArenaViewPro
       return { color: theme.colors.gray[3], monitor: null, monitors: monitorsForSeat };
     }
     const online = !!monitor.updateAt && monitor.updateAt > Date.now() - ONLINE_THRESHOLD_MS;
-    if (!online) {
+    const isErrmachine = !online;
+    if (isErrmachine) {
+      if (viewMode === 'status') {
+        return { color: theme.colors.red[6], monitor, monitors: monitorsForSeat };
+      }
       return { color: theme.colors.gray[5], monitor, monitors: monitorsForSeat };
     }
     if (viewMode === 'status') {
@@ -366,7 +412,11 @@ export function ArenaView({ monitors, isLoading, openMonitorInfo }: ArenaViewPro
       if (!monitor.wifiBssid) {
         return { color: theme.colors.blue[3], monitor, monitors: monitorsForSeat };
       }
-      return { color: hashToColor(monitor.wifiBssid), monitor, monitors: monitorsForSeat };
+      const color = bssidColorMap.get(monitor.wifiBssid);
+      if (color) {
+        return { color, monitor, monitors: monitorsForSeat };
+      }
+      return { color: theme.colors.blue[3], monitor, monitors: monitorsForSeat };
     }
     const signal = monitor.wifiSignal ?? Number.NaN;
     return { color: getSignalColor(signal, theme.colors.yellow[4]), monitor, monitors: monitorsForSeat };
